@@ -45,25 +45,14 @@ export async function buildJupiterSwapTransaction(
   const baseAmount = toBaseUnits(amount, inputToken);  
 
   // Get swap transaction  
-  const response = 
-    await fetch(
-      'https://api.jup.ag/ultra/v1/order' +
-      `?inputMint=${inputMint}` +
-      `&outputMint=${outputMint}` +
-      `&amount=${baseAmount}` +
-      `&taker=${userPublicKey.toBase58()}`,
-      {
-        headers: {
-          'x-api-key': import.meta.env.JUPITER_API_KEY,
-        },
-      }
-    );
-  
-  const result = await response.json();
+  const options = {method: 'GET', headers: {'x-api-key': '2f2d84de-e496-43e4-9cb0-beadab62249e'}};
 
-  const expectedOutput = fromBaseUnits(result.outAmount, outputToken);
+  const result = await fetch(`https://api.jup.ag/ultra/v1/order?inputMint=${inputMint}&outputMint=${outputMint}&amount=${baseAmount}&taker=${userPublicKey.toBase58()}&excludeRouters=jupiterz`, options);
+  const jsonResult = await result.json();
+
+  const expectedOutput = fromBaseUnits(jsonResult.outAmount, outputToken);
   // Deserialize transaction (unsigned) - 修正 Buffer 處理  
-  const swapTransactionBuf = Buffer.from(result.transaction, 'base64');  
+  const swapTransactionBuf = Buffer.from(jsonResult.transaction, 'base64');  
   const transaction = VersionedTransaction.deserialize(swapTransactionBuf);  
   
   return { transaction, expectedOutput };  

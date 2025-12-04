@@ -25,17 +25,19 @@ const JITO_TIP_ACCOUNTS = [
 /**
  * Get a random Jito tip account (no API call needed)
  */
-export function getRandomTipAccount(): PublicKey {
-  const randomIndex = Math.floor(Math.random() * JITO_TIP_ACCOUNTS.length);
-  return new PublicKey(JITO_TIP_ACCOUNTS[randomIndex]);
+export async function getRandomTipAccount(): Promise<PublicKey> {
+  const addresses = await getTipAccounts();
+  setTimeout(() => {}, 1000);
+  const randomIndex = Math.floor(Math.random() * addresses.length);
+  return new PublicKey(addresses[randomIndex]);
 }
 
 /**
  * Get Jito tip accounts
  */
 export async function getTipAccounts(
-  endpoint: string = JITO_ENDPOINTS.MAINNET
-): Promise<string[]> {
+  endpoint: string = 'https://amsterdam.mainnet.block-engine.jito.wtf/api/v1/getTipAccounts'
+): Promise<PublicKey[]> {
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -52,6 +54,8 @@ export async function getTipAccounts(
     throw new Error(`getTipAccounts failed: ${data.error.message}`);
   }
 
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
   return data.result;
 }
 
@@ -62,10 +66,10 @@ export async function createTipTransaction(
   connection: Connection,
   payerPubkey: PublicKey,
   tipLamports: number = DEFAULT_TIP_LAMPORTS,
-  _endpoint: string = JITO_ENDPOINTS.MAINNET
+  _endpoint: string = JITO_ENDPOINTS.AMSTERDAM
 ): Promise<VersionedTransaction> {
   // Select random tip account to reduce contention
-  const tipAccount = getRandomTipAccount();
+  const tipAccount = await getRandomTipAccount();
 
   // Get recent blockhash
   const { blockhash } = await connection.getLatestBlockhash('confirmed');
@@ -92,7 +96,7 @@ export async function createTipTransaction(
  */
 export async function sendBundle(
   transactions: VersionedTransaction[],
-  endpoint: string = JITO_ENDPOINTS.MAINNET
+  endpoint: string = JITO_ENDPOINTS.AMSTERDAM
 ): Promise<string> {
   // Serialize transactions to base64
   const encodedTransactions = transactions.map((transaction) =>
@@ -101,7 +105,7 @@ export async function sendBundle(
 
   console.log('Sending bundle with transactions:', encodedTransactions);
 
-  const response = await axios.post(endpoint, {
+  const response = await axios.post("https://amsterdam.mainnet.block-engine.jito.wtf/api/v1/bundles", {
     jsonrpc: '2.0',
     id: 1,
     method: 'sendBundle',
@@ -125,9 +129,9 @@ export async function sendBundle(
  */
 export async function getBundleStatuses(
   bundleIds: string[],
-  endpoint: string = JITO_ENDPOINTS.MAINNET
+  endpoint: string = JITO_ENDPOINTS.AMSTERDAM
 ): Promise<(BundleStatus | null)[]> {
-  const response = await axios.post(endpoint, {
+  const response = await axios.post("https://amsterdam.mainnet.block-engine.jito.wtf/api/v1/getBundleStatuses", {
     jsonrpc: '2.0',
     id: 1,
     method: 'getBundleStatuses',
@@ -143,11 +147,33 @@ export async function getBundleStatuses(
 }
 
 /**
+ * Get bundle inflight status
+ */
+export async function getBundleInflightStatuses(
+  bundleIds: string[],
+  endpoint: string = JITO_ENDPOINTS.AMSTERDAM
+): Promise<(BundleStatus | null)[]> {
+  const response = await axios.post("https://amsterdam.mainnet.block-engine.jito.wtf/api/v1/getInflightBundleStatuses", {
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'getInflightBundleStatuses',
+    params: [bundleIds],
+  });
+
+  const data = await response.data;
+  if (data.error) {
+    throw new Error(`getInflightBundleStatuses failed: ${data.error.message}`);
+  }
+
+  return data.result?.value || [];
+}
+
+/**
  * Wait for bundle confirmation with polling
  */
 export async function waitForBundleConfirmation(
   bundleId: string,
-  endpoint: string = JITO_ENDPOINTS.MAINNET,
+  endpoint: string = JITO_ENDPOINTS.AMSTERDAM,
   timeoutMs: number = 60000,
   pollIntervalMs: number = 2000
 ): Promise<JitoBundleResult> {
@@ -157,6 +183,9 @@ export async function waitForBundleConfirmation(
     try {
       const statuses = await getBundleStatuses([bundleId], endpoint);
       console.log('Bundle statuses:', statuses);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const inflightStatuses = await getBundleInflightStatuses([bundleId], endpoint);
+      console.log('Bundle inflight statuses:', inflightStatuses);
       await new Promise((resolve) => setTimeout(resolve, 1000));
       const status = statuses[0];
 

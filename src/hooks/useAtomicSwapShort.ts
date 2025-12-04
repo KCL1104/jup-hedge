@@ -181,7 +181,7 @@ export function useAtomicSwapShort(): UseAtomicSwapShortResult {
           connection,
           publicKey,
           jitoTipLamports,
-          JITO_ENDPOINTS.MAINNET
+          JITO_ENDPOINTS.AMSTERDAM
         );
         transactions.push(tipTx);
 

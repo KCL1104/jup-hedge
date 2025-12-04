@@ -51,7 +51,7 @@ export function useJitoBundle(): UseJitoBundleResult {
           connection,
           publicKey,
           tipLamports,
-          JITO_ENDPOINTS.MAINNET
+          JITO_ENDPOINTS.AMSTERDAM
         );
 
         // Combine all transactions + tip
@@ -64,8 +64,7 @@ export function useJitoBundle(): UseJitoBundleResult {
         // Submit bundle and wait for confirmation
         console.log('Submitting bundle to Jito...');
         const result = await submitAndConfirmBundle(
-          signedTransactions,
-          JITO_ENDPOINTS.MAINNET
+          signedTransactions
         );
 
         if (result.success) {
